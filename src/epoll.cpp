@@ -4,15 +4,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "epoll.h"
-#include "main.h"
+
+#define MAX_EPOLL_EVENTS 64
 
 int createEpollFd(){
   int fd;
-  if ((efd = epoll_create1(0)) == -1) {
+  if ((fd = epoll_create1(0)) == -1) {
       perror("epoll_create1");
   }
-  return efd;
-}
+  return fd;
 }
 
 void addEpollSocket(const int epollfd, const int sock, struct epoll_event *ev) {

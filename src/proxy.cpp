@@ -1,6 +1,7 @@
 #include "server.h"
 #include "client.h"
 #include "library.h"
+#include "epoll.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -15,9 +16,14 @@
 
 #define BUFLEN 1024
 #define MAXEVENTS 64
-int createEpollFd();
-void addEpollSocket(const int epollfd, const int socket, struct epoll_event *event);
-int waitForEpollEvent(const int epollfd, struct epoll_event *events);
+
+struct Connection {
+    char IP1;
+    char IP2;
+    char port1;
+    char port2;
+}
+
 void NewData(int fd);
 void NewConnection(int socket, const int epollfd);
 
@@ -63,32 +69,6 @@ int main(int argc, char *argv[]){
     close(epollfd);
     return 0;
 }
-
-int createEpollFd(){
-  int fd;
-  if ((fd = epoll_create1(0)) == -1) {
-      perror("epoll_create1");
-  }
-  return fd;
-}
-
-void addEpollSocket(const int epollfd, const int socket, struct epoll_event *events) {
-    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, socket, events) == -1) {
-        perror("epoll_ctl");
-    }
-}
-
-int waitForEpollEvent(const int epollfd, struct epoll_event *events) {
-    int ev;
-    if ((ev = epoll_wait(epollfd, events, MAXEVENTS, -1)) == -1) {
-        if (errno == EINTR) {
-            return 0;
-        }
-        perror("epoll_wait");
-    }
-    return ev;
-}
-
 void NewConnection(int socket, const int epollfd){
   while(1){
     struct sockaddr_in addr;

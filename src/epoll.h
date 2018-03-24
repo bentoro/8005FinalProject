@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "epoll.h"
-#include "main.h"
 
 using namespace std;
 
