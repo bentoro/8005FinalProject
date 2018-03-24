@@ -1,7 +1,7 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include "socketwrappers.h"
+#include "library.h"
 #include <netinet/in.h>
 #include <iostream>
 #include <strings.h>

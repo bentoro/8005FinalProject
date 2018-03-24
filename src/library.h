@@ -1,5 +1,5 @@
-#ifndef SOCKETWRAPPERS_H
-#define SOCKETWRAPPERS_H
+#ifndef LIBRARY_H
+#define LIBRARY_H
 
 #include <stdio.h>
 #include <errno.h>

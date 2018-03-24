@@ -1,6 +1,6 @@
-#include "../Library/server.h"
-#include "../Library/client.h"
-#include "../Library/Library.h"
+#include "server.h"
+#include "client.h"
+#include "library.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -26,8 +26,8 @@ int main(int argc, char *argv[]){
     struct epoll_event event;
     struct epoll_event *events;
 
-    Server *server = new Server(7005, 0);
-    cout << "Listening socket" <<server->GetSocket() << endl;
+    Server *server = new Server(7005);
+    cout << "Listening socket" << server->GetSocket() << endl;
     sock = server->GetSocket();
     SetNonBlocking(sock);
 
@@ -49,9 +49,11 @@ int main(int argc, char *argv[]){
           continue;
         } else if((events[i].events & EPOLLIN)){
           if(events[i].data.fd == sock){
+            printf("Accepting connection");
             //accept connection
             NewConnection(events[i].data.fd, epollfd);
           } else {
+            printf("New data");
             NewData(events[i].data.fd);
           }
 
