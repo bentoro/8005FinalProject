@@ -117,7 +117,7 @@ void GetConfig(){
 
             hostent* hp;
             if((hp = gethostbyname(ip1)) == NULL){
-                printf("gethostbyname error");
+                perror("gethostbyname error");
             }
             Connections[count].ip1.sin_family = AF_INET;
             Connections[count].ip1.sin_port = htons (port1);
@@ -131,10 +131,10 @@ void GetConfig(){
             bcopy(hp1->h_addr, (char*) &Connections[count].ip2.sin_addr, hp1->h_length);
             Connections[count].ip2.sin_family = AF_INET;
             Connections[count].ip2.sin_port = htons (port2);
-
             count++;
         }
 }
+
 
 void NewConnection(int socket, const int epollfd){
   while(1){
