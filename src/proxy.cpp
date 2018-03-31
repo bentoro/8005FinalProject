@@ -22,8 +22,8 @@
 #define MAXEVENTS 64
 
 typedef struct {
-    struct sockaddr_in *ip1;
-    struct sockaddr_in *ip2;
+    struct sockaddr_in ip1;
+    struct sockaddr_in ip2;
 }Connection;
 
 void NewData(int fd);
@@ -37,7 +37,7 @@ int main(int argc, char *argv[]){
     struct epoll_event event;
     struct epoll_event *events;
 
-    //GetConfig();
+    GetConfig();
 
     Server *server = new Server(7005);
     cout << "Listening socket" << server->GetSocket() << endl;
@@ -87,21 +87,21 @@ void Init_connection(string ip1, string ip2, string port1, string port2){
   Connections[k].ip1->sin_family = AF_INET;
   Connections[k].ip1->sin_port = htons (atoi(config[countconfig+1].c_str()));
 }*/
-/*
+
 void GetConfig(){
   //initialize after every line
         FILE *fp;
         fp = fopen("config","r");
         int c=0;
-        int lines;
+        int lines = 0;
         while(!feof(fp)){
             c=fgetc(fp);
             if(c == '\n'){
                 lines++;
             }
         }
-        cout << lines << endl;
-        Connections = (Connection *)calloc(lines,sizeof(Connection));
+        cout << "lines in config: " << lines << endl;
+        Connections = (Connection *)calloc(lines, sizeof(Connection));
         rewind(fp);
         int count = 0;
         while(!feof(fp)){
@@ -119,22 +119,22 @@ void GetConfig(){
             if((hp = gethostbyname(ip1)) == NULL){
                 printf("gethostbyname error");
             }
-            bcopy(hp->h_addr, (char*) &Connections[0].ip1->sin_addr, hp->h_length);
-            Connections[count].ip1->sin_family = AF_INET;
-            Connections[count].ip1->sin_port = htons (port1);
+            Connections[count].ip1.sin_family = AF_INET;
+            Connections[count].ip1.sin_port = htons (port1);
+            bcopy(hp->h_addr, (char*) &Connections[count].ip1.sin_addr, hp->h_length);
 
             hostent* hp1;
             if((hp1 = gethostbyname(ip1)) == NULL){
                 perror("gethostbyname");
             }
 
-            bcopy(hp1->h_addr, (char*) &Connections[0].ip2->sin_addr, hp1->h_length);
-            Connections[count].ip2->sin_family = AF_INET;
-            Connections[count].ip2->sin_port = htons (port2);
+            bcopy(hp1->h_addr, (char*) &Connections[count].ip2.sin_addr, hp1->h_length);
+            Connections[count].ip2.sin_family = AF_INET;
+            Connections[count].ip2.sin_port = htons (port2);
 
             count++;
         }
-}*/
+}
 
 void NewConnection(int socket, const int epollfd){
   while(1){
