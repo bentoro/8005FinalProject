@@ -76,17 +76,6 @@ int main(int argc, char *argv[]){
     close(epollfd);
     return 0;
 }
-/*
-void Init_connection(string ip1, string ip2, string port1, string port2){
-  bzero((char*)Connections[k].ip1, sizeof(struct sockaddr_in));
-  hostent* hp;
-  if((hp = gethostbyname(config[countconfig].c_str())) == NULL){
-    perror("gethostbyname");
-  }
-  bcopy(hp->h_addr, (char*) &Connections[k].ip1->sin_addr, hp->h_length);
-  Connections[k].ip1->sin_family = AF_INET;
-  Connections[k].ip1->sin_port = htons (atoi(config[countconfig+1].c_str()));
-}*/
 
 void GetConfig(){
   //initialize after every line
