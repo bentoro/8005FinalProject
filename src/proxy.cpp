@@ -93,7 +93,7 @@ void GetConfig(){
         Connections = (Connection *)calloc(lines, sizeof(Connection));
         rewind(fp);
         int count = 0;
-        while(!feof(fp)){
+        while(count < lines){
             char ip1[BUFLEN];
             int port1;
             char ip2[BUFLEN];
