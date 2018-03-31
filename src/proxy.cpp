@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define BUFLEN 1024
 #define MAXEVENTS 64
@@ -35,24 +37,7 @@ int main(int argc, char *argv[]){
     struct epoll_event event;
     struct epoll_event *events;
 
-    GetConfig();
-    /*
-    int countconfig=0;
-    for (int k=0; k < numofconnections; k++){
-      COnnections[k] = Init_connection(k, countconfig);
-
-      bzero((char*)Connections[k].ip1, sizeof(struct sockaddr_in));
-      hostent* hp;
-      if((hp = gethostbyname(config[countconfig].c_str())) == NULL){
-        perror("gethostbyname");
-      }
-      bcopy(hp->h_addr, (char*) &Connections[k].ip1->sin_addr, hp->h_length);
-      Connections[k].ip1->sin_family = AF_INET;
-      Connections[k].ip1->sin_port = htons (atoi(config[countconfig+1].c_str()));
-
-
-      countconfig=countconfig+4;
-    }*/
+    //GetConfig();
 
     Server *server = new Server(7005);
     cout << "Listening socket" << server->GetSocket() << endl;
@@ -102,27 +87,9 @@ void Init_connection(string ip1, string ip2, string port1, string port2){
   Connections[k].ip1->sin_family = AF_INET;
   Connections[k].ip1->sin_port = htons (atoi(config[countconfig+1].c_str()));
 }*/
+/*
 void GetConfig(){
   //initialize after every line
-	/*ifstream file;
-     	file.open("config");
-     	//check if file exists
-        if (!file){
-        	perror("Files does not exist");
-       	} else {
-                while(!file.eof()){
-                  string line;
-                	getline(file, line);
-                  cout << line << endl;
-                  cout << line[0] << endl;
-                  cout << line[1] << endl;
-                  cout << line[2] << endl;
-                  cout << line[3] << endl;
-                  numofconnections++;
-                }
-        }
-        numofconnections=numofconnections/2;
-        numofconnections=numofconnections/2;*/
         FILE *fp;
         fp = fopen("config","r");
         int c=0;
@@ -136,7 +103,7 @@ void GetConfig(){
         cout << lines << endl;
         Connections = (Connection *)calloc(lines,sizeof(Connection));
         rewind(fp);
-        int count;
+        int count = 0;
         while(!feof(fp)){
             char ip1[BUFLEN];
             int port1;
@@ -150,10 +117,9 @@ void GetConfig(){
 
             hostent* hp;
             if((hp = gethostbyname(ip1)) == NULL){
-                perror("gethostbyname");
+                printf("gethostbyname error");
             }
-            bzero((char*)Connections[count].ip1, sizeof(struct sockaddr_in));
-            bcopy(hp->h_addr, (char*) &Connections[count].ip1->sin_addr, hp->h_length);
+            bcopy(hp->h_addr, (char*) &Connections[0].ip1->sin_addr, hp->h_length);
             Connections[count].ip1->sin_family = AF_INET;
             Connections[count].ip1->sin_port = htons (port1);
 
@@ -161,13 +127,14 @@ void GetConfig(){
             if((hp1 = gethostbyname(ip1)) == NULL){
                 perror("gethostbyname");
             }
-            bzero((char*)Connections[count].ip2, sizeof(struct sockaddr_in));
+
+            bcopy(hp1->h_addr, (char*) &Connections[0].ip2->sin_addr, hp1->h_length);
             Connections[count].ip2->sin_family = AF_INET;
             Connections[count].ip2->sin_port = htons (port2);
 
             count++;
         }
-}
+}*/
 
 void NewConnection(int socket, const int epollfd){
   while(1){
