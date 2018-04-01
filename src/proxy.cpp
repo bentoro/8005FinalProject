@@ -26,13 +26,12 @@ typedef struct {
 }Connection;
 
 typedef struct {
-    int ClientSendPort;
     int ProxyRecvPort;
     int ProxySendPort;
     int sock;
 }client_info;
 
-client_info *ClientList;
+client_info **ClientList;
 
 void NewData(int fd);
 void NewConnection(int socket, const int epollfd);
@@ -40,13 +39,17 @@ int GetConfig();
 void ForwardTraffic();
 
 int numofconnections;
+int clientcount;
+int sendport;
 Connection *Connections;
 int main(int argc, char *argv[]){
     int sock, epollfd;
     struct epoll_event event;
     struct epoll_event *events;
-
+    clientcount = 0;
+    sendport = 8000;
     epollfd = createEpollFd();
+    ClientList =(client_info *)calloc(BUFLEN, sizeof(client_info));
     numofconnections = GetConfig();
     for (int i = 0; i < numofconnections; i++){
     //listening for packets coming in at port 7005
@@ -87,10 +90,6 @@ int main(int argc, char *argv[]){
     close(epollfd);
     return 0;
 }
-void InitClientList(){
-    
-}
-
 
 void ForwardTraffic(){
 
@@ -161,12 +160,22 @@ void NewConnection(int socket, const int epollfd){
         perror("Accept error \n");
       }
     }
+    struct sockaddr_in sin;
+    socklen_t len = sizeof(sin);
+    if(getsockname(socket, (struct sockaddr *)&sin, &len) == -1){
+        perror("getsockename");
+    }
+    client_info *clientptr = ClientList[clientcount]; 
+    clientptr->ProxySendPort = sendport;
+    clientptr->ProxyRecvPort = ntohs(sin.sin_port);
+    clientptr->sock = newfd;
     SetNonBlocking(newfd);
     event.events = EPOLLIN | EPOLLET;
-    event.data.fd = newfd;
-    //event.data.ptr = 
+    event.data.ptr = clientptr;
     addEpollSocket(epollfd, newfd, &event);
     printf("Adding a new client \n");
+    clientcount++;
+    sendport++;
   }
 }
 
