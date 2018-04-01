@@ -63,7 +63,7 @@ int main(int argc, char *argv[]){
 
     for (int i = 0; i < numofconnections; i++){
         //listening for packets coming in at port 7005
-        Server *server = new Server(Connections[i].ip1.sin_port);
+        Server *server = new Server(server_list[i].port);
         cout << "Listening socket " << server->GetSocket() << endl;
         sock = server->GetSocket();
         SetNonBlocking(sock);
@@ -78,8 +78,8 @@ int main(int argc, char *argv[]){
         SetNonBlocking(proxy_sock);
 
         event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
-        event.data.fd = sock;
-        addEpollSocket(epollfd, sock, &event);
+        event.data.fd = proxy_sock;
+        addEpollSocket(epollfd, proxy_sock, &event);
     }
 
     events =(epoll_event *) calloc(numofconnections, sizeof(event));
@@ -91,10 +91,9 @@ int main(int argc, char *argv[]){
         for (i = 0; i < fds; i++){
             if((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)){
                 close(events[i].data.fd);
-                free(events[i].data.ptr);
                 continue;
             } else if((events[i].events & EPOLLIN)){
-                if(events[i].data.fd == sock){
+                if(events[i].data.ptr){
                     printf("Accepting connection");
                     //accept connection
                     NewConnection(events[i].data.fd, epollfd);
@@ -109,6 +108,7 @@ int main(int argc, char *argv[]){
     close(epollfd);
     return 0;
 }
+
 
 void ForwardTraffic(){
 
@@ -150,7 +150,6 @@ int GetConfig(){
 
 int NewServerSock(char* ip, int port) {
     int sock;
-    hostent* hp;
     struct sockaddr_in servaddr;
 
     sock = Socket(AF_INET, SOCK_STREAM, 0);
@@ -158,7 +157,6 @@ int NewServerSock(char* ip, int port) {
 
     return sock;
 }
-
 
 void NewConnection(int socket, const int epollfd){
     while(1){
