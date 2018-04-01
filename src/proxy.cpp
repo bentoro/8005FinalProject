@@ -25,6 +25,11 @@ typedef struct {
     struct sockaddr_in ip2;
 }Connection;
 
+typedef struct {
+
+
+}ClientList;
+
 void NewData(int fd);
 void NewConnection(int socket, const int epollfd);
 int GetConfig();
@@ -151,6 +156,7 @@ void NewConnection(int socket, const int epollfd){
     SetNonBlocking(newfd);
     event.events = EPOLLIN | EPOLLET;
     event.data.fd = newfd;
+    event.data.ptr = 
     addEpollSocket(epollfd, newfd, &event);
     printf("Adding a new client \n");
   }
