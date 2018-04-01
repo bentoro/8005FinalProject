@@ -26,9 +26,13 @@ typedef struct {
 }Connection;
 
 typedef struct {
+    int ClientSendPort;
+    int ProxyRecvPort;
+    int ProxySendPort;
+    int sock;
+}client_info;
 
-
-}ClientList;
+client_info *ClientList;
 
 void NewData(int fd);
 void NewConnection(int socket, const int epollfd);
@@ -83,6 +87,10 @@ int main(int argc, char *argv[]){
     close(epollfd);
     return 0;
 }
+void InitClientList(){
+    
+}
+
 
 void ForwardTraffic(){
 
@@ -156,7 +164,7 @@ void NewConnection(int socket, const int epollfd){
     SetNonBlocking(newfd);
     event.events = EPOLLIN | EPOLLET;
     event.data.fd = newfd;
-    event.data.ptr = 
+    //event.data.ptr = 
     addEpollSocket(epollfd, newfd, &event);
     printf("Adding a new client \n");
   }
