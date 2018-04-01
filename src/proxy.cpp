@@ -15,8 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+
 
 #define BUFLEN 1024
 #define MAXEVENTS 64
@@ -28,28 +27,31 @@ typedef struct {
 
 void NewData(int fd);
 void NewConnection(int socket, const int epollfd);
-void GetConfig();
+int GetConfig();
+void ForwardTraffic();
 
 int numofconnections;
 Connection *Connections;
 int main(int argc, char *argv[]){
-    int sock;
+    int sock, epollfd;
     struct epoll_event event;
     struct epoll_event *events;
 
-    GetConfig();
-
-    Server *server = new Server(7005);
-    cout << "Listening socket" << server->GetSocket() << endl;
+    epollfd = createEpollFd();
+    numofconnections = GetConfig();
+    for (int i = 0; i < numofconnections; i++){
+    //listening for packets coming in at port 7005
+    Server *server = new Server(Connections[i].ip1.sin_port);
+    cout << "Listening socket " << server->GetSocket() << endl;
     sock = server->GetSocket();
     SetNonBlocking(sock);
 
     event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
     event.data.fd = sock;
-    int epollfd = createEpollFd();
     addEpollSocket(epollfd, sock, &event);
+    }
 
-    events =(epoll_event *) calloc(MAXEVENTS, sizeof(event));
+    events =(epoll_event *) calloc(numofconnections, sizeof(event));
 
     while(1){
       int fds, i;
@@ -77,7 +79,11 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
-void GetConfig(){
+void ForwardTraffic(){
+
+}
+
+int GetConfig(){
   //initialize after every line
         FILE *fp;
         fp = fopen("config","r");
@@ -122,6 +128,7 @@ void GetConfig(){
             Connections[count].ip2.sin_port = htons (port2);
             count++;
         }
+    return lines;
 }
 
 
@@ -131,21 +138,21 @@ void NewConnection(int socket, const int epollfd){
     struct epoll_event event;
     socklen_t addrlen;
     int newfd;
-    printf("Listening socket");
+    printf("Listening socket \n");
     //add all the new clients trying to connect
     if ((newfd = accept(socket, (struct sockaddr*)&addr, &addrlen)) == -1){
       if((errno == EAGAIN) || (errno == EWOULDBLOCK)){
         //no more connections
         break;
       } else {
-        perror("Accept error");
+        perror("Accept error \n");
       }
     }
     SetNonBlocking(newfd);
     event.events = EPOLLIN | EPOLLET;
     event.data.fd = newfd;
     addEpollSocket(epollfd, newfd, &event);
-    printf("Adding a new client");
+    printf("Adding a new client \n");
   }
 }
 
@@ -155,12 +162,12 @@ void NewData(int fd){
   int bytesread, write;
 
   if((fp = fopen("result","w")) == NULL){
-    perror("File doesn't exist");
+    perror("File doesn't exist \n");
   }
   memset(buffer, '\0', BUFLEN);
   while((bytesread = read(fd, buffer,sizeof(buffer))) < 0){
     if((write = fwrite(buffer, 1, bytesread, fp)) < 0){
-      perror("Write failed");
+      perror("Write failed \n");
     }
   }
   cout << buffer << endl;
