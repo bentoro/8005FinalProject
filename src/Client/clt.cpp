@@ -2,7 +2,7 @@
 #include "../library.h"
 
 int main(int argc, char *argv[]){
-    Client *client = new Client("127.0.0.1",7006);
+    Client *client = new Client("127.0.0.1",7005);
 
     SetNonBlocking(client->GetSocket());
 

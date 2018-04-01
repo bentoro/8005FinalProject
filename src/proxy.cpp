@@ -37,7 +37,7 @@ typedef struct {
     int sock;
 }client_info;
 
-client_info **ClientList;
+client_info *ClientList;
 server_info *server_list;
 
 void NewData(int fd);
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]){
     clientcount = 0;
     sendport = 8000;
     epollfd = createEpollFd();
-    ClientList =(client_info **)calloc(BUFLEN, sizeof(client_info));
+    ClientList =(client_info *)calloc(BUFLEN, sizeof(client_info));
     numofconnections = GetConfig();
 
 
@@ -185,13 +185,12 @@ void NewConnection(int socket, const int epollfd){
         if(getsockname(socket, (struct sockaddr *)&sin, &len) == -1){
             perror("getsockename");
         }
-        client_info *clientptr = ClientList[clientcount];
-        clientptr->ProxySendPort = sendport;
-        clientptr->ProxyRecvPort = ntohs(sin.sin_port);
-        clientptr->sock = newfd;
+        ClientList[clientcount].ProxySendPort = sendport;
+        ClientList[clientcount].ProxyRecvPort = ntohs(sin.sin_port);
+        ClientList[clientcount].sock = newfd;
         SetNonBlocking(newfd);
         event.events = EPOLLIN | EPOLLET;
-        event.data.ptr = clientptr;
+        event.data.fd = newfd;
         addEpollSocket(epollfd, newfd, &event);
         printf("Adding a new client \n");
         clientcount++;
