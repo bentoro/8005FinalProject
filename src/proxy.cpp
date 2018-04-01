@@ -49,7 +49,7 @@ int main(int argc, char *argv[]){
     clientcount = 0;
     sendport = 8000;
     epollfd = createEpollFd();
-    ClientList =(client_info *)calloc(BUFLEN, sizeof(client_info));
+    ClientList =(client_info **)calloc(BUFLEN, sizeof(client_info));
     numofconnections = GetConfig();
     for (int i = 0; i < numofconnections; i++){
     //listening for packets coming in at port 7005
@@ -165,7 +165,7 @@ void NewConnection(int socket, const int epollfd){
     if(getsockname(socket, (struct sockaddr *)&sin, &len) == -1){
         perror("getsockename");
     }
-    client_info *clientptr = ClientList[clientcount]; 
+    client_info *clientptr = ClientList[clientcount];
     clientptr->ProxySendPort = sendport;
     clientptr->ProxyRecvPort = ntohs(sin.sin_port);
     clientptr->sock = newfd;
