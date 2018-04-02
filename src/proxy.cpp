@@ -41,7 +41,7 @@ void NewConnection(int socket, const int epollfd);
 int GetConfig();
 void ForwardTraffic();
 int NewServerSock(char* ip, int port);
-bool newConnectionFound(int numofconnections, struct epoll_event *ev, int epollfd);
+bool newConnectionFound(int fd, int epollfd);
 
 int listenarray[MAXEVENTS];
 int numofconnections;
@@ -95,13 +95,19 @@ int main(int argc, char *argv[]){
                 close(events[i].data.fd);
                 continue;
             } else if((events[i].events & EPOLLIN)){
-                if(newConnectionFound(numofconnections, &events[i], epollfd)) {
-                    printf("New Connection found");
+                /*for (int k = 0; k < numofconnections; k++) {
+                    if(events[i].data.fd == listenarray[k]){
+                        printf("New connection \n");
+                        NewConnection(events[i].data.fd, epollfd);
+                        break;
+                    }
+                }*/
+                if(newConnectionFound(events[i].data.fd, epollfd)){
+                    printf("New connection \n");
                 } else {
                     printf("New data \n");
                     NewData(events[i].data.fd);
                 }
-
             }
         }
     }
@@ -109,7 +115,7 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
-bool newConnectionFound(int numofconnections, struct epoll_event *ev, int epollfd) {
+bool newConnectionFound(int fd, int epollfd) {
     /*for(int i = 0; i < numofconnections; i++) {
         if(ev->data.fd == server_list[i].sock){
             printf("Accepting Server connection");
@@ -119,10 +125,10 @@ bool newConnectionFound(int numofconnections, struct epoll_event *ev, int epollf
         }
     }*/
 
-    for (int i = 0; i < clientcount; i++) {
-        if(ev->data.fd == listenarray[i]){
+    for (int i = 0; i < numofconnections; i++) {
+        if(fd == listenarray[i]){
             printf("Accepting Client connection");
-            NewConnection(ev[i].data.fd, epollfd);
+            NewConnection(fd, epollfd);
 
             return true;
         }
@@ -216,18 +222,14 @@ void NewConnection(int socket, const int epollfd){
 }
 
 void NewData(int fd){
-    FILE *fp;
     char buffer[BUFLEN];
-    int bytesread, write;
+    int bytesread;
     struct sockaddr_in sin;
     socklen_t addrlen;
     int byteswrote;
 
     memset(buffer, '\0', BUFLEN);
     while((bytesread = read(fd, buffer,sizeof(buffer))) < 0){
-        if((write = fwrite(buffer, 1, bytesread, fp)) < 0){
-            perror("Write failed \n");
-        }
     }
 
     cout << buffer << endl;
@@ -255,5 +257,4 @@ void NewData(int fd){
         }
     }
 
-    fclose(fp);
 }
