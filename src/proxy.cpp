@@ -15,9 +15,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <limits.h>
 
-
-#define BUFLEN 1024
 #define MAXEVENTS 64
 
 typedef struct {
@@ -31,6 +32,7 @@ typedef struct {
     int ProxyRecvPort;
     int ProxySendPort;
     int sock;
+    int pipefd[2];
 }client_info;
 
 client_info *ClientList;
@@ -42,6 +44,8 @@ int GetConfig();
 void ForwardTraffic();
 int NewServerSock(char* ip, int port);
 bool newConnectionFound(int fd, int epollfd);
+void close_fd (int signo);
+int echo(int recvfd, int sendfd);
 
 int listenarray[MAXEVENTS];
 int numofconnections;
@@ -54,6 +58,17 @@ int main(int argc, char *argv[]){
     struct epoll_event *events;
     clientcount = 0;
     sendport = 8000;
+    struct sigaction act;
+
+	// set up the signal handler to close the server socket when CTRL-c is received
+    act.sa_handler = close_fd;
+    act.sa_flags = 0;
+    if ((sigemptyset (&act.sa_mask) == -1 || sigaction (SIGINT, &act, NULL) == -1))
+    {
+        perror ("Failed to set SIGINT handler");
+        exit (EXIT_FAILURE);
+    }
+
     epollfd = createEpollFd();
     ClientList =(client_info *)calloc(BUFLEN, sizeof(client_info));
     numofconnections = GetConfig();
@@ -223,14 +238,11 @@ void NewConnection(int socket, const int epollfd){
 
 void NewData(int fd){
     char buffer[BUFLEN];
-    int bytesread;
+    ///int bytesread;
     struct sockaddr_in sin;
     socklen_t addrlen;
-    int byteswrote;
-
-    memset(buffer, '\0', BUFLEN);
-    while((bytesread = read(fd, buffer,sizeof(buffer))) < 0){
-    }
+    //int byteswrote;
+    int serverport,clientport;
 
     cout << buffer << endl;
 
@@ -241,20 +253,50 @@ void NewData(int fd){
     int port = ntohs(sin.sin_port);
     printf("Received data from port: %d\n", port);
 
-    for(int i = 0; i < numofconnections; i++) {
-        if(server_list[i].port == port) {
-            byteswrote = send(server_list[i].sock, buffer, sizeof(buffer), 0);
-            printf("Sent to server: %d\n", byteswrote);
+    for(serverport = 0; serverport < numofconnections; serverport++) {
+        if(server_list[serverport].port == port) {
+            //byteswrote = send(server_list[i].sock, buffer, sizeof(buffer), 0);
+            //printf("Sent to server: %d\n", byteswrote);
+            echo(fd,server_list[serverport].sock);
             break;
         }
     }
 
-    for(int i = 0; i < clientcount; i++) {
-        if(ClientList[i].ProxyRecvPort == port) {
-            byteswrote = send(ClientList[i].sock, buffer, sizeof(buffer), 0);
-            printf("Sent to client: %d\n", byteswrote);
+    for(clientport = 0; clientport < clientcount; clientport++) {
+        if(ClientList[clientport].ProxyRecvPort == port) {
+            //byteswrote = send(ClientList[i].sock, buffer, sizeof(buffer), 0);
+            //printf("Sent to client: %d\n", byteswrote);
+            echo(fd,ClientList[clientport].sock);
             break;
         }
     }
+    /*  while((bytesread = read(fd, buffer,sizeof(buffer))) < 0){
+    }*/
 
+}
+int echo(int recvfd, int sendfd){
+    while(1){
+        int nr = splice(recvfd, 0, sendfd, 0, USHRT_MAX, SPLICE_F_MOVE | SPLICE_F_MORE | SPLICE_F_NONBLOCK);
+        if(nr == -1 && errno != EAGAIN){
+            perror("splice");
+         }
+        if(nr <= 0){
+            break;
+        }
+        printf("read: %\n", nr);
+    }
+    return 0;
+}
+
+void close_fd (int signo)
+{
+    for(int i = 0; i < numofconnections; i++){
+        close(listenarray[i]);
+        printf("Closing listener socket %d \n",numofconnections);
+    }
+    for(int i = 0; i < clientcount; i++){
+        close(ClientList[clientcount].sock);
+        printf("Closing listener socket %d \n",ClientList[clientcount].sock);
+    }
+	    exit (EXIT_SUCCESS);
 }

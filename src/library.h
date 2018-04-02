@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define BUFLEN 1024
+#define BUFLEN 35000
 
 int Socket(int family, int type, int protocol);
 int Bind(int socket, struct sockaddr_in *addr);
