@@ -103,7 +103,7 @@ int main(int argc, char *argv[]){
                     //accept connection
                     NewConnection(events[i].data.fd, epollfd);
                 } else {
-                    printf("New data");
+                    printf("New data \n");
                     NewData(events[i].data.fd);
                 }
 
@@ -231,7 +231,16 @@ void NewData(int fd){
     for(int i = 0; i < numofconnections; i++) {
         if(server_list[i].port == port) {
             byteswrote = send(server_list[i].sock, buffer, sizeof(buffer), 0);
-            printf("Sent: %d\n", byteswrote);
+            printf("Sent to server: %d\n", byteswrote);
+            break;
+        }
+    }
+
+    for(int i = 0; i < clientcount; i++) {
+        if(ClientList[i].ProxyRecvPort == port) {
+            byteswrote = send(ClientList[i].sock, buffer, sizeof(buffer), 0);
+            printf("Sent to client: %d\n", byteswrote);
+            break;
         }
     }
 
