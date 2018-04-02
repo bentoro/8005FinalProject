@@ -28,6 +28,7 @@ typedef struct {
 typedef struct {
     int port;
     int sock;
+    struct sockaddr_in servaddr;
 } server_info;
 
 typedef struct {
@@ -50,8 +51,9 @@ int numofconnections;
 int clientcount;
 int sendport;
 Connection *Connections;
+
 int main(int argc, char *argv[]){
-    int sock, epollfd;
+    int epollfd, listensock;
     struct epoll_event event;
     struct epoll_event *events;
     clientcount = 0;
@@ -65,24 +67,27 @@ int main(int argc, char *argv[]){
         //listening for packets coming in at port 7005
         Server *server = new Server(server_list[i].port);
         cout << "Listening socket " << server->GetSocket() << endl;
-        sock = server->GetSocket();
-        SetNonBlocking(sock);
+        listensock = server->GetSocket();
+        SetNonBlocking(listensock);
 
         event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
-        event.data.fd = sock;
-        addEpollSocket(epollfd, sock, &event);
+        event.data.fd = listensock;
+        addEpollSocket(epollfd, listensock, &event);
+    }
+
+    events =(epoll_event *) calloc(MAXEVENTS, sizeof(event));
+
+    for(int j = 0; j < numofconnections; j++){
 
         //make proxy connection to actual servers
         cout << "Setting proxy connection sockets" << endl;
-        int proxy_sock = server_list[i].sock;
+        int proxy_sock = server_list[j].sock;
         SetNonBlocking(proxy_sock);
-
         event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
         event.data.fd = proxy_sock;
-        addEpollSocket(epollfd, proxy_sock, &event);
+        addEpollSocket(epollfd, server_list[j].sock, &event);
+        Connect(server_list[j].sock, server_list[j].servaddr);
     }
-
-    events =(epoll_event *) calloc(numofconnections, sizeof(event));
 
     while(1){
         int fds, i;
@@ -93,7 +98,7 @@ int main(int argc, char *argv[]){
                 close(events[i].data.fd);
                 continue;
             } else if((events[i].events & EPOLLIN)){
-                if(events[i].data.ptr){
+                if(events[i].data.fd == listensock){
                     printf("Accepting connection");
                     //accept connection
                     NewConnection(events[i].data.fd, epollfd);
@@ -134,17 +139,20 @@ int GetConfig(){
     while(count < lines){
         char ip[BUFLEN];
         int port;
-
+        int proxy_sock;
 
         fscanf(fp, "%s %u", ip, &port);
         cout << ip << endl;
         cout << port << endl;
 
         server_list[count].port = port;
-        server_list[count].sock = NewServerSock(ip, port);
+        proxy_sock = Socket(AF_INET, SOCK_STREAM, 0);
+        ClientConfig(&server_list[count].servaddr, ip, port);
+        server_list[count].sock = proxy_sock;
 
         count++;
     }
+
     return lines;
 }
 
@@ -174,12 +182,6 @@ void NewConnection(int socket, const int epollfd){
                 perror("Accept error \n");
             }
         }
-        SetNonBlocking(newfd);
-        event.events = EPOLLIN | EPOLLET;
-        event.data.fd = newfd;
-        addEpollSocket(epollfd, newfd, &event);
-        printf("Adding a new client \n");
-
         struct sockaddr_in sin;
         socklen_t len = sizeof(sin);
         if(getsockname(socket, (struct sockaddr *)&sin, &len) == -1){
@@ -202,16 +204,36 @@ void NewData(int fd){
     FILE *fp;
     char buffer[BUFLEN];
     int bytesread, write;
+    struct sockaddr_in sin;
+    socklen_t addrlen;
+    int byteswrote;
 
     if((fp = fopen("result","w")) == NULL){
         perror("File doesn't exist \n");
     }
+
     memset(buffer, '\0', BUFLEN);
     while((bytesread = read(fd, buffer,sizeof(buffer))) < 0){
         if((write = fwrite(buffer, 1, bytesread, fp)) < 0){
             perror("Write failed \n");
         }
     }
+
     cout << buffer << endl;
+
+    if(getsockname(fd, (struct sockaddr *)&sin, &addrlen) == -1){
+        perror("getsockename");
+    }
+
+    int port = ntohs(sin.sin_port);
+    printf("Received data from port: %d\n", port);
+
+    for(int i = 0; i < numofconnections; i++) {
+        if(server_list[i].port == port) {
+            byteswrote = send(server_list[i].sock, buffer, sizeof(buffer), 0);
+            printf("Sent: %d\n", byteswrote);
+        }
+    }
+
     fclose(fp);
 }
