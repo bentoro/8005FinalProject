@@ -21,11 +21,6 @@
 #define MAXEVENTS 64
 
 typedef struct {
-    struct sockaddr_in ip1;
-    struct sockaddr_in ip2;
-}Connection;
-
-typedef struct {
     int port;
     int sock;
     struct sockaddr_in servaddr;
@@ -46,11 +41,12 @@ void NewConnection(int socket, const int epollfd);
 int GetConfig();
 void ForwardTraffic();
 int NewServerSock(char* ip, int port);
+bool newConnectionFound(int numofconnections, struct epoll_event *ev, int epollfd);
 
+int listenarray[MAXEVENTS];
 int numofconnections;
 int clientcount;
 int sendport;
-Connection *Connections;
 
 int main(int argc, char *argv[]){
     int epollfd, listensock;
@@ -62,7 +58,6 @@ int main(int argc, char *argv[]){
     ClientList =(client_info *)calloc(BUFLEN, sizeof(client_info));
     numofconnections = GetConfig();
 
-
     for (int i = 0; i < numofconnections; i++){
         //listening for packets coming in at port 7005
         Server *server = new Server(server_list[i].port);
@@ -73,6 +68,7 @@ int main(int argc, char *argv[]){
         event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
         event.data.fd = listensock;
         addEpollSocket(epollfd, listensock, &event);
+        listenarray[i] = listensock;
     }
 
     events =(epoll_event *) calloc(MAXEVENTS, sizeof(event));
@@ -89,6 +85,7 @@ int main(int argc, char *argv[]){
         Connect(server_list[j].sock, server_list[j].servaddr);
     }
 
+
     while(1){
         int fds, i;
         fds = waitForEpollEvent(epollfd, events);
@@ -98,10 +95,8 @@ int main(int argc, char *argv[]){
                 close(events[i].data.fd);
                 continue;
             } else if((events[i].events & EPOLLIN)){
-                if(events[i].data.fd == listensock){
-                    printf("Accepting connection");
-                    //accept connection
-                    NewConnection(events[i].data.fd, epollfd);
+                if(newConnectionFound(numofconnections, &events[i], epollfd)) {
+                    printf("New Connection found");
                 } else {
                     printf("New data \n");
                     NewData(events[i].data.fd);
@@ -114,6 +109,26 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
+bool newConnectionFound(int numofconnections, struct epoll_event *ev, int epollfd) {
+    /*for(int i = 0; i < numofconnections; i++) {
+        if(ev->data.fd == server_list[i].sock){
+            printf("Accepting Server connection");
+            NewConnection(ev->data.fd, epollfd);
+
+            return true;
+        }
+    }*/
+
+    for (int i = 0; i < clientcount; i++) {
+        if(ev->data.fd == listenarray[i]){
+            printf("Accepting Client connection");
+            NewConnection(ev[i].data.fd, epollfd);
+
+            return true;
+        }
+    }
+    return false;
+}
 
 void ForwardTraffic(){
 
@@ -132,7 +147,7 @@ int GetConfig(){
         }
     }
     cout << "lines in config: " << lines << endl;
-    server_list = (server_info*) calloc(numofconnections, sizeof(server_info));
+    server_list = (server_info*) calloc(lines, sizeof(server_info));
 
     rewind(fp);
     int count = 0;
@@ -207,10 +222,6 @@ void NewData(int fd){
     struct sockaddr_in sin;
     socklen_t addrlen;
     int byteswrote;
-
-    if((fp = fopen("result","w")) == NULL){
-        perror("File doesn't exist \n");
-    }
 
     memset(buffer, '\0', BUFLEN);
     while((bytesread = read(fd, buffer,sizeof(buffer))) < 0){
