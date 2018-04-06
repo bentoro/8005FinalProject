@@ -1,3 +1,28 @@
+/*------------------------------------------------------------------------------
+# SOURCE FILE: 		proxy.cpp
+#
+# PROGRAM:  		COMP8005 - Assignment 3
+#
+# FUNCTIONS:
+#          void NewData(int fd, bool flush);
+#          void NewConnection(int socket, const int epollfd);
+#          int GetConfig();
+#          void ForwardTraffic();
+#          bool newConnectionFound(int fd, int epollfd);
+#          void close_fd (int signo);
+#          int echo(int recvfd, int sendfd, int pipe[2]);
+#          void FlushOut(int fd, int pipe[2]);
+#          int GetPort(int socket);
+#
+# DATE:			Apr 6, 2018
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# NOTES:		This program forwards all the packets that are being listened to, to
+#           the destination ip/port
+#
+------------------------------------------------------------------------------*/
 #include "server.h"
 #include "client.h"
 #include "library.h"
@@ -18,36 +43,26 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <limits.h>
+#include "proxy.h"
 
-#define MAXEVENTS 64
-
-typedef struct {
-    int port;
-    const char *ip;
-    //int sock;
-} server_info;
-
-typedef struct {
-    int ProxyRecvPort;
-    int ProxySendPort;
-    int pipefd[2];
-    int client_sock;
-    int server_sock;
-}client_info;
-
-client_info *ClientList;
-server_info *server_list;
-
-void NewData(int fd, bool flush);
-void NewConnection(int socket, const int epollfd);
-int GetConfig();
-void ForwardTraffic();
-bool newConnectionFound(int fd, int epollfd);
-void close_fd (int signo);
-int echo(int recvfd, int sendfd, int pipe[2]);
-void FlushOut(int fd, int pipe[2]);
-int GetPort(int socket);
-
+/*------------------------------------------------------------------------------
+# FUNCTION:   Main
+#
+# DATE:			  Apr 6, 2018
+#
+# INTERFACE:  Main()
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# PARAMETER:  int argc, char *argv[]
+#
+# RETURNS:    int
+#
+# NOTES:		  This program forwards all the packets that are being listened to, to
+#             the destination ip/port
+#
+------------------------------------------------------------------------------*/
 int listenarray[MAXEVENTS];
 int numofconnections;
 int clientcount;
@@ -86,20 +101,6 @@ int main(int argc, char *argv[]){
     }
 
     events =(epoll_event *) calloc(MAXEVENTS, sizeof(event));
-/*
-    for(int j = 0; j < numofconnections; j++){
-
-        //make proxy connection to actual servers
-        cout << "Setting proxy connection sockets" << endl;
-        int proxy_sock = server_list[j].sock;
-        pipe(server_list[j].pipefd);
-        SetNonBlocking(proxy_sock);
-        event.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
-        event.data.fd = proxy_sock;
-        addEpollSocket(epollfd, server_list[j].sock, &event);
-        Connect(server_list[j].sock, server_list[j].servaddr);
-    }
-*/
 
     while(1){
         int fds, i;
@@ -110,13 +111,6 @@ int main(int argc, char *argv[]){
                 close(events[i].data.fd);
                 continue;
             } else if((events[i].events & EPOLLIN)){
-                /*for (int k = 0; k < numofconnections; k++) {
-                    if(events[i].data.fd == listenarray[k]){
-                        printf("New connection \n");
-                        NewConnection(events[i].data.fd, epollfd);
-                        break;
-                    }
-                }*/
                 if(newConnectionFound(events[i].data.fd, epollfd)){
                     printf("New connection \n");
                 } else {
@@ -132,16 +126,23 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
+/*------------------------------------------------------------------------------
+# FUNCTION:   newConnectionFound
+#
+# DATE:			  Apr 6, 2018
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# PARAMETER:  int fd - file descriptor
+#             int epollfd - Epoll fil descriptor
+#
+# RETURNS:    true if new connection is found
+#
+# NOTES:		  Checks if there is a new connection and accepts new connection
+#
+------------------------------------------------------------------------------*/
 bool newConnectionFound(int fd, int epollfd) {
-    /*for(int i = 0; i < numofconnections; i++) {
-        if(ev->data.fd == server_list[i].sock){
-            printf("Accepting Server connection");
-            NewConnection(ev->data.fd, epollfd);
-
-            return true;
-        }
-    }*/
-
     for (int i = 0; i < numofconnections; i++) {
         if(fd == listenarray[i]){
             printf("Accepting Client connection \n");
@@ -153,6 +154,21 @@ bool newConnectionFound(int fd, int epollfd) {
     return false;
 }
 
+/*------------------------------------------------------------------------------
+# FUNCTION:   GetConfig
+#
+# DATE:			  Apr 6, 2018
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# PARAMETER:  void
+#
+# RETURNS:    returns number of connections
+#
+# NOTES:		  Parses the data in the config file and stores it into a struct
+#
+------------------------------------------------------------------------------*/
 int GetConfig(){
     //initialize after every line
     FILE *fp;
@@ -180,17 +196,30 @@ int GetConfig(){
         cout << port << endl;
 
         server_list[count].port = port;
-        //proxy_sock = Socket(AF_INET, SOCK_STREAM, 0);
         server_list[count].ip = ip;
-        //ClientConfig(&server_list[count].servaddr, ip, port);
-        //server_list[count].sock = proxy_sock;
-
         count++;
     }
 
     return lines;
 }
 
+/*------------------------------------------------------------------------------
+# FUNCTION:   NewConnection
+#
+# DATE:			  Apr 6, 2018
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# PARAMETER:  int socket - file descriptor of connected socket
+#             const int epollfd - Epoll fil descriptor
+#
+# RETURNS:    void
+#
+# NOTES:		  Accepts new conection and adds the connected socket into the client
+#             list
+#
+------------------------------------------------------------------------------*/
 void NewConnection(int socket, const int epollfd){
     while(1){
         struct sockaddr addr;
@@ -224,9 +253,6 @@ void NewConnection(int socket, const int epollfd){
         event.data.fd = newfd;
         addEpollSocket(epollfd, newfd, &event);
 
-        //Creating a new connection to the server at "sendport"
-    //    int server_sock = Socket(AF_INET, SOCK_STREAM, 0);  //socket going to the server
-     //   struct sockaddr_in connection_addr; //establishing the connection with the new socket
         Client *proxy_connection;
 
         //Connect to epoll
@@ -238,7 +264,6 @@ void NewConnection(int socket, const int epollfd){
             }
         }
 
-//        Connect(server_sock, connection_addr);
         ClientList[clientcount].server_sock = proxy_connection->GetSocket();
         ClientList[clientcount].ProxySendPort = GetPort(proxy_connection->GetSocket());
 
@@ -251,6 +276,21 @@ void NewConnection(int socket, const int epollfd){
     }
 }
 
+/*------------------------------------------------------------------------------
+# FUNCTION:   GetPort
+#
+# DATE:			  Apr 6, 2018
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# PARAMETER:  int socket - socket of connection
+#
+# RETURNS:    returns the port of the connection
+#
+# NOTES:		  Gets the port of the socket
+#
+------------------------------------------------------------------------------*/
 int GetPort(int socket){
     struct sockaddr_in connectionsin;
     socklen_t connection_len = sizeof(connectionsin);
@@ -260,6 +300,22 @@ int GetPort(int socket){
     return ntohs(connectionsin.sin_port);
 }
 
+/*------------------------------------------------------------------------------
+# FUNCTION:   NewData
+#
+# DATE:			  Apr 6, 2018
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# PARAMETER:  int fd - file descriptor
+#             bool flush - flush tag
+#
+# RETURNS:    true if new connection is found
+#
+# NOTES:		  Reads new data and sends data to the designated server and clients
+#
+------------------------------------------------------------------------------*/
 void NewData(int fd, bool flush){
     struct sockaddr_in sin;
     socklen_t addrlen;
@@ -277,7 +333,6 @@ void NewData(int fd, bool flush){
             if(flush) {
                 FlushOut(fd, ClientList[serverport].pipefd);
             } else {
-                //printf("Sent to server: %d\n", byteswrote);
                 echo(fd, ClientList[serverport].server_sock, ClientList[serverport].pipefd);
             }
             break;
@@ -289,7 +344,6 @@ void NewData(int fd, bool flush){
             if(flush) {
                 FlushOut(fd, ClientList[clientport].pipefd);
             } else {
-                //printf("Sent to server: %d\n", byteswrote);
                 echo(fd, ClientList[clientport].client_sock, ClientList[clientport].pipefd);
             }
             break;
@@ -297,6 +351,24 @@ void NewData(int fd, bool flush){
     }
 }
 
+/*------------------------------------------------------------------------------
+# FUNCTION:   echo
+#
+# DATE:			  Apr 6, 2018
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# PARAMETER:  int recvfd - received file descriptor
+#             int sendfd - sending file descriptor
+#             int pipe[2] - pipe to be used
+#
+# RETURNS:    int
+#
+# NOTES:		  sends the data to the server and sends the data returned from the server
+#             to the client
+#
+------------------------------------------------------------------------------*/
 int echo(int recvfd, int sendfd, int pipe[2]){
     while(1){
         int nr = splice(recvfd, 0, pipe[1], 0, USHRT_MAX, SPLICE_F_MOVE | SPLICE_F_MORE | SPLICE_F_NONBLOCK);
@@ -322,6 +394,22 @@ int echo(int recvfd, int sendfd, int pipe[2]){
     return 0;
 }
 
+/*------------------------------------------------------------------------------
+# FUNCTION:   FlushOut
+#
+# DATE:			  Apr 6, 2018
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# PARAMETER:  int sendfd - send file descriptor
+#             int pipe[2] - pipe
+#
+# RETURNS:    void
+#
+# NOTES:		  Reads whatever data that wasn't fully read from the previous splice
+#
+------------------------------------------------------------------------------*/
 void FlushOut(int sendfd, int pipe[2]) {
     while(1) {
         int nr = splice (pipe[0], 0, sendfd, 0, USHRT_MAX, SPLICE_F_MOVE | SPLICE_F_MORE | SPLICE_F_NONBLOCK);
@@ -335,19 +423,27 @@ void FlushOut(int sendfd, int pipe[2]) {
     }
 }
 
-
-void close_fd (int signo)
-{
+/*------------------------------------------------------------------------------
+# FUNCTION:   close_fd
+#
+# DATE:			  Apr 6, 2018
+#
+# DESIGNER:		Benedict Lo & Aing Ragunathan
+# PROGRAMMER:	Benedict Lo & Aing Ragunathan
+#
+# PARAMETER:  int signo - signal to close
+#
+# RETURNS:    void
+#
+# NOTES:		  Closes all the sockets that were open
+#
+------------------------------------------------------------------------------*/
+void close_fd (int signo) {
+  //close all open sockets
     for(int i = 0; i < numofconnections; i++){
         close(listenarray[i]);
         printf("Closing listener socket %d \n",numofconnections);
     }
-/*
-    for(int i = 0; i < numofconnections; i++){
-        close(server_list[i].sock);
-        printf("Closing server socket %d \n",numofconnections);
-    }
-*/
     for(int i = 0; i < clientcount; i++){
         close(ClientList[clientcount].client_sock);
         close(ClientList[clientcount].server_sock);
